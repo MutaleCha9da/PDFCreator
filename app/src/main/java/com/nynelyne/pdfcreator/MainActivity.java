@@ -1,11 +1,15 @@
 package com.nynelyne.pdfcreator;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
+import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -19,11 +23,17 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+
+
 public class MainActivity extends AppCompatActivity {
 
     Button btnCreatePDF;
     EditText editText;
     TextView textView;
+
+    private static final int STORAGE_CODE = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,8 +46,28 @@ public class MainActivity extends AppCompatActivity {
 
         btnCreatePDF.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                createPdf(editText.getText().toString());
+            public void onClick(View v)
+            {
+                //we need to handle runtime permission for devices with marshmallow and above
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M){
+                    //system OS >= Marshmallow(6.0), check if permission is enabled or not
+                    if (checkSelfPermission(WRITE_EXTERNAL_STORAGE) ==
+                            PackageManager.PERMISSION_DENIED){
+                        //permission was not granted, request it
+                        String[] permissions = {WRITE_EXTERNAL_STORAGE};
+                        requestPermissions(permissions, STORAGE_CODE);
+                    }
+                    else {
+                        //permission already granted, call save pdf method
+                        createPdf(editText.getText().toString());
+                    }
+                }
+                else {
+                    //system OS < Marshmallow, call save pdf method
+                    createPdf(editText.getText().toString());
+                }
+
+                //createPdf(editText.getText().toString());
             }
         });
     }
@@ -86,5 +116,43 @@ public class MainActivity extends AppCompatActivity {
 
         //close the document
         document.close();
+    }
+
+    private static final int PERMISSION_REQUEST_CODE = 200;
+    private boolean checkPermission() {
+
+        return ContextCompat.checkSelfPermission(this, WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+                ;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (permissions.length > 0 && grantResults.length > 0) {
+
+                boolean flag = true;
+                for (int i = 0; i < grantResults.length; i++) {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                        flag = false;
+                    }
+                }
+                if (flag) {
+                    openActivity();
+                } else {
+                    finish();
+                }
+
+            } else {
+                finish();
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    private void openActivity() {
+        //add your further process after giving permission or to download images from remote server.
     }
 }
